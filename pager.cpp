@@ -33,7 +33,7 @@ struct Page {
 int PAGE_SIZE = 4096;
 int BUFFER_SIZE = 2 * PAGE_SIZE;
 
-void save_to_db (string db_name, vector<char>& buffer, int buffer_size) {
+void save_to_db (string db_name, const vector<char>& buffer, int buffer_size) {
     ofstream file(db_name, ios::out | ios::binary);
 
     if (!file.is_open()) {
