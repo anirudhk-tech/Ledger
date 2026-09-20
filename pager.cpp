@@ -146,7 +146,7 @@ Page* read_block(string db_name, int block_num) {
     return reinterpret_cast<Page*>(heap_cpy);
 }
 
-int write_block(string db_name, char* data, size_t size) {
+int write_block(string db_name, const char* data, size_t size) {
     int block_num = get_block(db_name);
     vector<char> buffer = read_from_db(db_name);
 
@@ -170,6 +170,23 @@ void delete_block(string db_name, int block_num) {
 }
 
 int main() {
-    bool db_opened = open("HelloWorld");
+    cout << "Initializing database...\n";
+
+    string DB_NAME = "HelloWorld";
+    bool db_opened = open(DB_NAME);
+    const char* data = "Hello!";
+
+    int block_num = write_block(DB_NAME, data, strlen(data));
+
+    cout << "Data written!\n";
+
+    Page* page = read_block(DB_NAME, block_num);
+
+    cout << "Data read: " << page->data << "\n";
+
+    delete[] reinterpret_cast<char*>(page);
+
+    cout << "Memory freed! Done.\n";
+
     return 0;
 }
