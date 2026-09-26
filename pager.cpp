@@ -30,6 +30,10 @@ struct Page {
 int PAGE_SIZE = 4096;
 int BUFFER_SIZE = 2 * PAGE_SIZE;
 
+const char* get_page_ptr(const vector<char>& buffer, int block_num) {
+    return buffer.data() + (PAGE_SIZE) + (block_num * PAGE_SIZE);
+};
+
 void save_to_db (string db_name, const vector<char>& buffer, int buffer_size) {
     ofstream file(db_name, ios::out | ios::binary);
 
@@ -83,17 +87,16 @@ int get_block(string db_name) {
     vector<char> buffer = read_from_db(db_name);
 
     if (buffer.size()) {
-        char* page2_address = buffer.data() + PAGE_SIZE;
-        PageTwoHeader* header = reinterpret_cast<PageTwoHeader*>(page2_address);
+        char* page1_address = buffer.data();
+        PageOneHeader* header = reinterpret_cast<PageOneHeader*>(page1_address);
         uint32_t page_ctr = header -> page_ctr;
 
         if (page_ctr == 0) {
             buffer.resize(buffer.size() + PAGE_SIZE);
-
-            header = reinterpret_cast<PageTwoHeader*>(buffer.data() + PAGE_SIZE);
             header -> page_ctr = 1;
 
-            Page* first_page = reinterpret_cast<Page*>(buffer.data() + (2 * PAGE_SIZE));
+            const char* first_page_ptr = get_page_ptr(buffer, 0);
+            Page* first_page = reinterpret_cast<Page*>(const_cast<char*>(first_page_ptr));
             first_page->page_number = 0;
             first_page->used = 0;
 
@@ -102,9 +105,9 @@ int get_block(string db_name) {
         }
 
         for (uint32_t x = 0; x < page_ctr; x++) {
-            char* curr = buffer.data() + (2 * PAGE_SIZE) + (x * PAGE_SIZE);
+            const char* curr = get_page_ptr(buffer, x);
 
-            Page* page = reinterpret_cast<Page*>(curr);
+            Page* page = reinterpret_cast<Page*>(const_cast<char*>(curr));
 
             if (!(page->used)) {
                 return page->page_number;
@@ -114,10 +117,11 @@ int get_block(string db_name) {
         uint32_t new_page_num = page_ctr;
         buffer.resize(buffer.size() + PAGE_SIZE);
 
-        header = reinterpret_cast<PageTwoHeader*>(buffer.data() + PAGE_SIZE);
+        header = reinterpret_cast<PageOneHeader*>(buffer.data());
         header -> page_ctr++;
 
-        Page* new_page = reinterpret_cast<Page*>(buffer.data() + (2 * PAGE_SIZE) + (new_page_num * PAGE_SIZE));
+        const char* new_page_ptr = get_page_ptr(buffer, new_page_num);
+        Page* new_page = reinterpret_cast<Page*>(const_cast<char*>(new_page_ptr));
         new_page->page_number = new_page_num;
         new_page->used = 0;
 
@@ -132,7 +136,7 @@ int get_block(string db_name) {
 
 Page* read_block(string db_name, int block_num) {
     vector<char> buffer = read_from_db(db_name);
-    char* page_ptr = buffer.data() + (2 * PAGE_SIZE) + (block_num * PAGE_SIZE);
+    const char* page_ptr = get_page_ptr(buffer, block_num);
     char* heap_cpy = new char[PAGE_SIZE];
 
     memcpy(heap_cpy, page_ptr, PAGE_SIZE);
@@ -144,8 +148,8 @@ int write_block(string db_name, const char* data, size_t size) {
     int block_num = get_block(db_name);
     vector<char> buffer = read_from_db(db_name);
 
-    char* page_ptr = buffer.data() + (2 * PAGE_SIZE) + (block_num * PAGE_SIZE);
-    Page* page = reinterpret_cast<Page*>(page_ptr);
+    const char* page_ptr = get_page_ptr(buffer, block_num);
+    Page* page = reinterpret_cast<Page*>(const_cast<char*>(page_ptr));
     memcpy(page->data, data, size);
     page->used = 1;
 
@@ -156,8 +160,8 @@ int write_block(string db_name, const char* data, size_t size) {
 void delete_block(string db_name, int block_num) {
     vector<char> buffer = read_from_db(db_name);
 
-    char* page_ptr = buffer.data() + (2 * PAGE_SIZE) + (block_num * PAGE_SIZE);
-    Page* page = reinterpret_cast<Page*>(page_ptr);
+    const char* page_ptr = get_page_ptr(buffer, block_num);
+    Page* page = reinterpret_cast<Page*>(const_cast<char*>(page_ptr));
 
     page->used = 0;
     save_to_db(db_name, buffer, buffer.size());
