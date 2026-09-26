@@ -17,11 +17,8 @@
 using namespace std;
 
 struct PageOneHeader {
-    char db_name[256];
-};
-
-struct PageTwoHeader {
     int page_ctr;
+    int page_size;
 };
 
 struct Page {
@@ -74,11 +71,8 @@ bool open(string db_name) {
 
     char* page1_address = buffer.data();
     PageOneHeader* page_one_header = reinterpret_cast<PageOneHeader*>(page1_address);
-    strncpy(page_one_header->db_name, db_name.c_str(), 255);
-
-    char* page2_address = buffer.data() + PAGE_SIZE;
-    PageTwoHeader* page_two_header = reinterpret_cast<PageTwoHeader*>(page2_address);
-    page_two_header -> page_ctr = 0;
+    page_one_header -> page_ctr = 0;
+    page_one_header -> page_size = PAGE_SIZE;
 
     save_to_db(db_name, buffer, buffer.size());
 
