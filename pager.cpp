@@ -16,19 +16,20 @@
 
 using namespace std;
 
-struct PageOneHeader {
-    int page_ctr;
-    int page_size;
-};
-
 struct Page {
     int page_number;
     int used;
+    int next_free;
     char data[];
 };
 
-int PAGE_SIZE = 4096;
-int BUFFER_SIZE = 2 * PAGE_SIZE;
+struct PageOneHeader {
+    uint32_t page_ctr;
+    uint32_t page_size;
+    int32_t first_free_page;
+};
+
+uint32_t PAGE_SIZE = 4096;
 
 const char* get_page_ptr(const vector<char>& buffer, int block_num) {
     return buffer.data() + (PAGE_SIZE) + (block_num * PAGE_SIZE);
@@ -71,12 +72,16 @@ bool open(string db_name) {
         return true;
     }
 
-    vector<char> buffer(BUFFER_SIZE);
+    vector<char> buffer(2 * PAGE_SIZE);
 
-    char* page1_address = buffer.data();
-    PageOneHeader* page_one_header = reinterpret_cast<PageOneHeader*>(page1_address);
+    const char* page1_address = buffer.data();
+    PageOneHeader* page_one_header = reinterpret_cast<PageOneHeader*>(const_cast<char*>(page1_address));
     page_one_header -> page_ctr = 0;
     page_one_header -> page_size = PAGE_SIZE;
+
+    const char* page2_address = get_page_ptr(buffer, 0);
+    Page* first_page = reinterpret_cast<Page*>(const_cast<char*>(page2_address));
+    page_one_header -> first_free_page = -1;
 
     save_to_db(db_name, buffer, buffer.size());
 
@@ -91,15 +96,15 @@ int get_block(string db_name) {
         PageOneHeader* header = reinterpret_cast<PageOneHeader*>(page1_address);
         uint32_t page_ctr = header -> page_ctr;
 
-        for (uint32_t x = 0; x < page_ctr; x++) {
-            const char* curr = get_page_ptr(buffer, x);
+        int32_t free_page_num = header->first_free_page;
 
-            Page* page = reinterpret_cast<Page*>(const_cast<char*>(curr));
-
-            if (!(page->used)) {
-                cout << "Unused page found." << "\n";
-                return page->page_number;
-            }
+        if (header->first_free_page != -1) {
+            const char* first_free_page = get_page_ptr(buffer, free_page_num);
+            Page* free_page = reinterpret_cast<Page*>(const_cast<char*>(first_free_page));
+            header->first_free_page = free_page->next_free;
+            free_page->used = 1;
+            save_to_db(db_name, buffer, buffer.size());
+            return free_page_num;
         }
 
         uint32_t new_page_num = page_ctr;
@@ -112,7 +117,8 @@ int get_block(string db_name) {
         Page* new_page = reinterpret_cast<Page*>(const_cast<char*>(new_page_ptr));
         new_page->page_number = new_page_num;
         cout << "New page created! Page number: " << new_page_num << "\n";
-        new_page->used = 0;
+        new_page->used = 1;
+        new_page->next_free = -1;
 
         save_to_db(db_name, buffer, buffer.size());
 
@@ -141,7 +147,6 @@ int write_block(string db_name, const char* data, size_t size) {
     }
 
     memcpy(page->data, data, size);
-    page->used = 1;
 
     save_to_db(db_name, buffer, buffer.size());
     return page->page_number;
@@ -150,10 +155,16 @@ int write_block(string db_name, const char* data, size_t size) {
 void delete_block(string db_name, int block_num) {
     vector<char> buffer = read_from_db(db_name);
 
+    const char* page_header_ptr = buffer.data();
     const char* page_ptr = get_page_ptr(buffer, block_num);
+
     Page* page = reinterpret_cast<Page*>(const_cast<char*>(page_ptr));
+    PageOneHeader* header = reinterpret_cast<PageOneHeader*>(const_cast<char*>(page_header_ptr));
 
     page->used = 0;
+    page->next_free = header->first_free_page;
+    header->first_free_page = page->page_number;
+
     save_to_db(db_name, buffer, buffer.size());
 }
 
@@ -175,13 +186,11 @@ int main() {
 
     char raw[PAGE_SIZE];
     read_block(DB_NAME, block_num, raw);
-    Page* page = reinterpret_cast<Page*>(page);
+    Page* page = reinterpret_cast<Page*>(raw);
 
     cout << "Data read: " << page->data << "\n";
     cout << "Page number: " << page->page_number << "\n";
     cout << "Page used: " << page->used << "\n";
-
-    delete[] reinterpret_cast<char*>(page);
 
     cout << "Memory freed! Done.\n";
 
