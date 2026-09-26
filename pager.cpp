@@ -123,14 +123,10 @@ int get_block(string db_name) {
     }
 }
 
-Page* read_block(string db_name, int block_num) {
+void read_block(string db_name, int block_num, char* page) {
     vector<char> buffer = read_from_db(db_name);
     const char* page_ptr = get_page_ptr(buffer, block_num);
-    char* heap_cpy = new char[PAGE_SIZE];
-
-    memcpy(heap_cpy, page_ptr, PAGE_SIZE);
-
-    return reinterpret_cast<Page*>(heap_cpy);
+    memcpy(page, page_ptr, PAGE_SIZE);
 }
 
 int write_block(string db_name, const char* data, size_t size) {
@@ -139,6 +135,11 @@ int write_block(string db_name, const char* data, size_t size) {
 
     const char* page_ptr = get_page_ptr(buffer, block_num);
     Page* page = reinterpret_cast<Page*>(const_cast<char*>(page_ptr));
+
+    if (size > PAGE_SIZE) {
+        return -1;
+    }
+
     memcpy(page->data, data, size);
     page->used = 1;
 
@@ -165,9 +166,16 @@ int main() {
 
     int block_num = write_block(DB_NAME, data, strlen(data));
 
+    if (block_num < 0) {
+        cout << "Write failed!";
+        return -1;
+    }
+
     cout << "Data written!\n";
 
-    Page* page = read_block(DB_NAME, block_num);
+    char raw[PAGE_SIZE];
+    read_block(DB_NAME, block_num, raw);
+    Page* page = reinterpret_cast<Page*>(page);
 
     cout << "Data read: " << page->data << "\n";
     cout << "Page number: " << page->page_number << "\n";
