@@ -91,25 +91,13 @@ int get_block(string db_name) {
         PageOneHeader* header = reinterpret_cast<PageOneHeader*>(page1_address);
         uint32_t page_ctr = header -> page_ctr;
 
-        if (page_ctr == 0) {
-            buffer.resize(buffer.size() + PAGE_SIZE);
-            header -> page_ctr = 1;
-
-            const char* first_page_ptr = get_page_ptr(buffer, 0);
-            Page* first_page = reinterpret_cast<Page*>(const_cast<char*>(first_page_ptr));
-            first_page->page_number = 0;
-            first_page->used = 0;
-
-            save_to_db(db_name, buffer, buffer.size());
-            return 0;
-        }
-
         for (uint32_t x = 0; x < page_ctr; x++) {
             const char* curr = get_page_ptr(buffer, x);
 
             Page* page = reinterpret_cast<Page*>(const_cast<char*>(curr));
 
             if (!(page->used)) {
+                cout << "Unused page found." << "\n";
                 return page->page_number;
             }
         }
@@ -123,6 +111,7 @@ int get_block(string db_name) {
         const char* new_page_ptr = get_page_ptr(buffer, new_page_num);
         Page* new_page = reinterpret_cast<Page*>(const_cast<char*>(new_page_ptr));
         new_page->page_number = new_page_num;
+        cout << "New page created! Page number: " << new_page_num << "\n";
         new_page->used = 0;
 
         save_to_db(db_name, buffer, buffer.size());
@@ -181,6 +170,8 @@ int main() {
     Page* page = read_block(DB_NAME, block_num);
 
     cout << "Data read: " << page->data << "\n";
+    cout << "Page number: " << page->page_number << "\n";
+    cout << "Page used: " << page->used << "\n";
 
     delete[] reinterpret_cast<char*>(page);
 
