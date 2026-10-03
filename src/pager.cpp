@@ -1,10 +1,3 @@
-// Reqs
-// Open() a file
-// Allocate() a block within the file
-// Clean() a block within that file
-// Unused() block number within that file
-// Used() tells whether a block is used
-
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -168,31 +161,12 @@ void delete_block(string db_name, int block_num) {
     save_to_db(db_name, buffer, buffer.size());
 }
 
-int main() {
-    cout << "Initializing database...\n";
-
-    string DB_NAME = "HelloWorld";
-    bool db_opened = open(DB_NAME);
-    const char* data = "Hello!";
-
-    int block_num = write_block(DB_NAME, data, strlen(data));
-
-    if (block_num < 0) {
-        cout << "Write failed!";
-        return -1;
-    }
-
-    cout << "Data written!\n";
-
+void print_page_details(string db_name, int block_num) {
     char raw[PAGE_SIZE];
-    read_block(DB_NAME, block_num, raw);
+    read_block(db_name, block_num, raw);
     Page* page = reinterpret_cast<Page*>(raw);
 
     cout << "Data read: " << page->data << "\n";
     cout << "Page number: " << page->page_number << "\n";
     cout << "Page used: " << page->used << "\n";
-
-    cout << "Memory freed! Done.\n";
-
-    return 0;
 }
